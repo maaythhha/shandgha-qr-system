@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Scan & Track Wood</title>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f9f9f9;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+    }
+    header {
+      background-color: white;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #eee;
+    }
+    header img {
+      height: 50px;
+      cursor: pointer;
+    }
+    nav a {
+      text-decoration: none;
+      color: #000;
+      font-weight: 500;
+      margin: 0 10px;
+      font-size: 14px;
+    }
+    nav a.active {
+      color: #CB7A32;
+      border-bottom: 2px solid #CB7A32;
+    }
+    .logout-icon {
+      width: 28px;
+      height: 28px;
+      cursor: pointer;
+    }
+    #reader {
+      width: 100%;
+      max-width: 400px;
+      margin: 20px auto;
+    }
+    .info {
+      font-weight: bold;
+      margin-top: 10px;
+      white-space: pre-line;
+    }
+    select, button, input {
+      margin-top: 15px;
+      padding: 10px;
+      font-size: 14px;
+      width: 220px;
+    }
+    button {
+      background-color: #CB7A32;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .status-select, .wood-type, .process-step, .project-input {
+      display: none;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="main.html"><img src="Logo.jpg" alt="Logo" /></a>
+    <nav>
+      <a href="main.html">HOME</a>
+      <a href="scan.html" class="active">SCANNING</a>
+      <a href="product-status.html">PRODUCT STATUS</a>
+      <a href="wood-inventory.html">WOOD INVENTORY</a>
+      <a href="reports.html">REPORTS</a>
+      <a href="employee-work-tracker.html">EMPLOYEE WORK TRACKER</a>
+    </nav>
+    <img src="out.jpg" alt="Logout" class="logout-icon" onclick="confirmLogout()" />
+  </header>
+
+  <h2>📷 Scan QR Code</h2>
+  <div id="reader"></div>
+  <div class="info" id="qr-info"></div>
+
+  <div class="status-select">
+    <label>Select Status:</label><br />
+    <select id="status" onchange="handleStatusChange()">
+      <option value="">-- Choose Status --</option>
+      <option value="New">New</option>
+      <option value="Cutting">Cutting</option>
+      <option value="Assembling">Assembling</option>
+      <option value="Polishing">Polishing</option>
+      <option value="Painting">Painting</option>
+      <option value="Quality Check">Quality Check</option>
+      <option value="Packaging">Packaging</option>
+      <option value="Done">Done</option>
+    </select>
+  </div>
+
+  <div class="wood-type">
+    <label>Select Wood Type (only for New):</label><br />
+    <select id="woodType">
+      <option value="">-- Choose Type --</option>
+      <option value="Softwood">Softwood</option>
+      <option value="Solid Wood">Solid Wood</option>
+       <option value="Core Wood panel">Core Wood panel</option>
+    </select>
+  </div>
+
+  <div class="project-input">
+    <label>Enter or Select Project:</label><br />
+    <input list="projectList" id="project" placeholder="Type project name..." />
+    <datalist id="projectList"></datalist>
+  </div>
+
+  <div class="process-step">
+    <label>Select Step:</label><br />
+    <select id="processStep">
+      <option value="">-- Choose Step --</option>
+      <option value="Start">Start</option>
+      <option value="Done">Done</option>
+    </select>
+  </div>
+
+  <button onclick="submitStatus()">Submit</button>
+
+  <script>
+    const reader = new Html5Qrcode("reader");
+    let currentId = null;
+    const employee = localStorage.getItem("loggedInEmployee") || "Unknown";
+    const projectList = new Set(JSON.parse(localStorage.getItem("projects") || "[]"));
+
+    projectList.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p;
+      document.getElementById("projectList").appendChild(opt);
+    });
+
+    Html5Qrcode.getCameras().then(devices => {
+      if (devices.length) {
+        reader.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: 250 },
+          (decodedText) => {
+            currentId = decodedText.trim();
+            const existingItems = JSON.parse(localStorage.getItem("woodItems") || "{}");
+            const existing = existingItems[currentId];
+            document.getElementById("qr-info").innerText = "Scanned: " + currentId + (existing ? `
+Current Status: ${existing.status}${existing.step ? ' - ' + existing.step : ''}
+Project: ${existing.project || 'N/A'}
+Wood Type: ${existing.woodType || 'N/A'}` : "New wood");
+            document.querySelector(".status-select").style.display = "block";
+          },
+          (errorMessage) => {
+            console.warn("QR Code scan error:", errorMessage);
+          }
+        ).catch(err => alert("Camera access failed: " + err));
+      } else {
+        alert("No camera found");
+      }
+    }).catch(err => alert("Camera permission denied or error: " + err));
+
+    function handleStatusChange() {
+      const status = document.getElementById("status").value;
+      const inProcessStatuses = ["Cutting", "Assembling", "Polishing", "Painting", "Quality Check", "Packaging"];
+      document.querySelector(".wood-type").style.display = status === "New" ? "block" : "none";
+      document.querySelector(".project-input").style.display = status === "New" ? "block" : "none";
+      document.querySelector(".process-step").style.display = inProcessStatuses.includes(status) ? "block" : "none";
+    }
+
+    function submitStatus() {
+      const status = document.getElementById("status").value;
+      const woodType = document.getElementById("woodType").value;
+      const processStep = document.getElementById("processStep").value;
+      const project = document.getElementById("project").value;
+      const inProcessStatuses = ["Cutting", "Assembling", "Polishing", "Painting", "Quality Check", "Packaging"];
+
+      if (!currentId) return alert("Please scan a QR code first.");
+      if (!status) return alert("Please select a status.");
+      if (status === "New" && (!woodType || !project)) return alert("Please select wood type and project name for 'New'.");
+      if (inProcessStatuses.includes(status) && !processStep) return alert("Please select step for the process status.");
+
+      const woodItems = JSON.parse(localStorage.getItem("woodItems") || "{}");
+      const existing = woodItems[currentId] || {};
+
+      woodItems[currentId] = {
+        ...existing,
+        status: status,
+        woodType: status === "New" ? woodType : existing.woodType || "Unknown",
+        step: inProcessStatuses.includes(status) ? processStep : "",
+        project: status === "New" ? project : existing.project || "",
+        updatedAt: new Date().toISOString(),
+        employee: employee,
+        history: [...(existing.history || []), existing.status || ""].filter(Boolean),
+        dates: [...(existing.dates || []), existing.updatedAt || ""].filter(Boolean),
+        steps: [...(existing.steps || []), existing.step || ""].filter(Boolean),
+        projects: [...(existing.projects || []), existing.project || ""].filter(Boolean)
+      };
+
+      if (status === "New" && project) {
+        projectList.add(project);
+        localStorage.setItem("projects", JSON.stringify(Array.from(projectList)));
+      }
+
+      localStorage.setItem("woodItems", JSON.stringify(woodItems));
+      alert("Submitted for QR: " + currentId + " by " + employee);
+
+      // Reset
+      currentId = null;
+      document.getElementById("qr-info").innerText = "";
+      document.getElementById("status").value = "";
+      document.getElementById("woodType").value = "";
+      document.getElementById("processStep").value = "";
+      document.getElementById("project").value = "";
+      document.querySelector(".status-select").style.display = "none";
+      document.querySelector(".wood-type").style.display = "none";
+      document.querySelector(".project-input").style.display = "none";
+      document.querySelector(".process-step").style.display = "none";
+    }
+
+    function confirmLogout() {
+      if (confirm("Are you sure you want to log out?")) {
+        localStorage.removeItem("loggedInEmployee");
+        sessionStorage.removeItem("loggedIn");
+        window.location.href = "login.html";
+      }
+    }
+  </script>
+</body>
+</html>
+

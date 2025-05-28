@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Main - Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #fff;
+      margin: 0;
+      padding: 0;
+    }
+
+    header {
+      background-color: white;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #eee;
+    }
+
+    header img {
+      height: 50px;
+      cursor: pointer;
+    }
+
+    nav a {
+      text-decoration: none;
+      color: #000;
+      font-weight: 500;
+      margin: 0 10px;
+      font-size: 14px;
+    }
+
+    nav a.active {
+      color: #CB7A32;
+      border-bottom: 2px solid #CB7A32;
+    }
+
+    .logout-icon {
+      width: 28px;
+      height: 28px;
+      cursor: pointer;
+    }
+
+    .main-content {
+      padding: 30px;
+      max-width: 700px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+    }
+
+    canvas {
+      max-width: 400px;
+      margin: 0 auto;
+    }
+
+    .scan-btn {
+      display: inline-block;
+      margin-top: 30px;
+      padding: 10px 20px;
+      font-size: 14px;
+      background-color: #CB7A32;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+    }
+
+    .scan-label {
+      font-weight: bold;
+      margin-top: 30px;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="main.html"><img src="Logo.jpg" alt="Logo"></a>
+    <nav>
+      <a href="main.html" class="active">HOME</a>
+      <a href="scan.html">SCANNING</a>
+      <a href="product-status.html">PRODUCT STATUS</a>
+      <a href="wood-inventory.html">WOOD INVENTORY</a>
+      <a href="reports.html">REPORTS</a>
+      <a href="employee-work-tracker.html">EMPLOYEE WORK TRACKER</a>
+    </nav>
+    <img src="out.jpg" alt="Logout" class="logout-icon" onclick="confirmLogout()" />
+  </header>
+
+  <div class="main-content">
+    <a href="scan.html" class="scan-btn">📷 Scan QR Code</a>
+    <h1>📊 Production Status Overview</h1>
+    <canvas id="statusChart"></canvas>
+  </div>
+
+  <script>
+    const rawItems = JSON.parse(localStorage.getItem("woodItems") || '{}');
+    const statusCounts = {
+      Done: 0,
+      "In Process": 0,
+      "New": 0
+    };
+
+    for (const id in rawItems) {
+      const status = rawItems[id].status;
+      if (status === "Done") statusCounts.Done++;
+      else if (status === "New") statusCounts["New"]++;
+      else statusCounts["In Process"]++;
+    }
+
+    const ctx = document.getElementById("statusChart").getContext("2d");
+    new Chart(ctx, {
+      type: "doughnut",
+      data: {
+        labels: ["Done", "In Process", "New"],
+        datasets: [{
+          data: [statusCounts.Done, statusCounts["In Process"], statusCounts["New"]],
+          backgroundColor: ["#4caf50", "#2196f3", "#ffc107"]
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            position: 'bottom'
+          }
+        }
+      }
+    });
+
+    function confirmLogout() {
+      if (confirm("Are you sure you want to log out?")) {
+        window.location.href = "login.html";
+      }
+    }
+  </script>
+</body>
+</html>
+

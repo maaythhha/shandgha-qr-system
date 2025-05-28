@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Employee Work Tracker</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #fff;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background-color: white;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #eee;
+    }
+    header img {
+      height: 50px;
+      cursor: pointer;
+    }
+    nav a {
+      text-decoration: none;
+      color: #000;
+      font-weight: 500;
+      margin: 0 10px;
+      font-size: 14px;
+    }
+    nav a.active {
+      color: #CB7A32;
+      border-bottom: 2px solid #CB7A32;
+    }
+    .logout-icon {
+      width: 28px;
+      height: 28px;
+      cursor: pointer;
+    }
+    .main-content {
+      padding: 30px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .filters {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    select {
+      padding: 6px;
+      margin: 0 10px;
+      font-size: 14px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: center;
+    }
+    th {
+      background-color: #f4f4f4;
+    }
+  </style>
+</head>
+<body>
+  <script>
+    if (!sessionStorage.getItem('loggedIn')) {
+      window.location.href = 'login.html';
+    }
+  </script>
+  <header>
+    <a href="main.html"><img src="Logo.jpg" alt="Logo"></a>
+    <nav>
+      <a href="main.html">HOME</a>
+      <a href="scan.html">SCANNING</a>
+      <a href="product-status.html">PRODUCT STATUS</a>
+      <a href="wood-inventory.html">WOOD INVENTORY</a>
+      <a href="reports.html">REPORTS</a>
+      <a href="employee-work-tracker.html" class="active">EMPLOYEE WORK TRACKER</a>
+    </nav>
+    <img src="out.jpg" alt="Logout" class="logout-icon" onclick="confirmLogout()" />
+  </header>
+  <div class="main-content">
+    <h1>👩‍🔧 Employee Work Tracker</h1>
+    <div class="filters">
+      <label>Filter by Employee:</label>
+      <select id="employeeFilter"></select>
+      <label>Filter by Status:</label>
+      <select id="statusFilter">
+        <option value="">All</option>
+        <option value="Cutting">Cutting</option>
+        <option value="Assembling">Assembling</option>
+        <option value="Polishing">Polishing</option>
+        <option value="Painting">Painting</option>
+        <option value="Quality Check">Quality Check</option>
+        <option value="Packaging">Packaging</option>
+        <option value="Done">Done</option>
+      </select>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>QR Code</th>
+          <th>Wood Type</th>
+          <th>Project</th>
+          <th>Employee</th>
+          <th>Status</th>
+          <th>Step</th>
+          <th>Start Time</th>
+          <th>End Time</th>
+          <th>Duration</th>
+        </tr>
+      </thead>
+      <tbody id="trackerTableBody"></tbody>
+    </table>
+  </div>
+  <script>
+    const woodItems = JSON.parse(localStorage.getItem("woodItems") || '{}');
+    const employees = new Set();
+    const tbody = document.getElementById("trackerTableBody");
+    const employeeFilter = document.getElementById("employeeFilter");
+    const statusFilter = document.getElementById("statusFilter");
+
+    for (const id in woodItems) {
+      const { employee } = woodItems[id];
+      if (employee) employees.add(employee);
+    }
+
+    employeeFilter.innerHTML = '<option value="">All</option>' +
+      Array.from(employees).map(name => `<option value="${name}">${name}</option>`).join('');
+
+    function renderTable() {
+      const rows = [];
+      tbody.innerHTML = '';
+      const selectedEmployee = employeeFilter.value;
+      const selectedStatus = statusFilter.value;
+
+      for (const id in woodItems) {
+        const item = woodItems[id];
+        const { woodType, project, employee, updatedAt, history = [], dates = [], steps = [], status, step } = item;
+
+        if (selectedEmployee && employee !== selectedEmployee) continue;
+        if (selectedStatus && status !== selectedStatus) continue;
+
+        const allStatuses = [...history, status];
+        const allSteps = [...(item.steps || []), step || '-'];
+        const allDates = [...(dates || []), updatedAt];
+
+        let startRef = null;
+        let stepStartTime = null;
+
+        for (let i = 0; i < allStatuses.length; i++) {
+          const s = allStatuses[i];
+          const st = allSteps[i] || '-';
+          const recordTime = new Date(allDates[i]);
+          let startTime = '-';
+          let endTime = '-';
+          let duration = '-';
+
+          if (st === 'Start') {
+            startRef = recordTime;
+            stepStartTime = recordTime;
+            startTime = recordTime.toLocaleString();
+          } else if (st === 'Done') {
+            endTime = recordTime.toLocaleString();
+            if (stepStartTime) {
+              startTime = stepStartTime.toLocaleString();
+              duration = `${Math.round((recordTime - stepStartTime) / 60000)} min`;
+              stepStartTime = null;
+            } else {
+              const firstDate = new Date(allDates[0]);
+              startTime = firstDate.toLocaleString();
+            }
+          } else {
+            startTime = recordTime.toLocaleString();
+          }
+
+          rows.push({
+            html: `<tr>
+              <td>${id}</td>
+              <td>${woodType}</td>
+              <td>${project || '-'}</td>
+              <td>${employee || '-'}</td>
+              <td>${s}</td>
+              <td>${st}</td>
+              <td>${startTime}</td>
+              <td>${endTime}</td>
+              <td>${duration}</td>
+            </tr>`,
+            time: recordTime
+          });
+        }
+      }
+
+      rows.sort((a, b) => b.time - a.time);
+      rows.forEach(r => tbody.insertAdjacentHTML('beforeend', r.html));
+    }
+
+    employeeFilter.addEventListener('change', renderTable);
+    statusFilter.addEventListener('change', renderTable);
+    renderTable();
+
+    function confirmLogout() {
+      if (confirm("Are you sure you want to log out?")) {
+        sessionStorage.removeItem('loggedIn');
+        localStorage.removeItem('loggedInEmployee');
+        window.location.href = "login.html";
+      }
+    }
+  </script>
+</body>
+</html>
+
+
+
+

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Product Status</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #fff;
+      margin: 0;
+      padding: 0;
+    }
+
+    header {
+      background-color: white;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #eee;
+    }
+
+    header img {
+      height: 50px;
+      cursor: pointer;
+    }
+
+    nav a {
+      text-decoration: none;
+      color: #000;
+      font-weight: 500;
+      margin: 0 10px;
+      font-size: 14px;
+    }
+
+    nav a.active {
+      color: #CB7A32;
+      border-bottom: 2px solid #CB7A32;
+    }
+
+    .logout-icon {
+      width: 28px;
+      height: 28px;
+      cursor: pointer;
+    }
+
+    .main-content {
+      padding: 30px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    select {
+      margin-bottom: 20px;
+      padding: 10px;
+      font-size: 14px;
+      width: 250px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: center;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+    }
+
+    th {
+      background-color: #f4f4f4;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="main.html"><img src="Logo.jpg" alt="Logo"></a>
+    <nav>
+      <a href="main.html">HOME</a>
+      <a href="scan.html">SCANNING</a>
+      <a href="product-status.html" class="active">PRODUCT STATUS</a>
+      <a href="wood-inventory.html">WOOD INVENTORY</a>
+      <a href="reports.html">REPORTS</a>
+      <a href="employee-work-tracker.html">EMPLOYEE WORK TRACKER</a>
+    </nav>
+    <img src="out.jpg" alt="Logout" class="logout-icon" onclick="confirmLogout()" />
+  </header>
+
+  <div class="main-content">
+    <h1>📦 Product Status</h1>
+
+    <select id="woodFilter" onchange="filterTable()">
+      <option value="">-- Filter by Wood Code --</option>
+    </select>
+
+    <select id="projectFilter" onchange="filterTable()">
+      <option value="">-- Filter by Project --</option>
+    </select>
+
+    <table>
+      <thead>
+        <tr>
+          <th>QR Code</th>
+          <th>Status</th>
+          <th>Step</th>
+          <th>Project</th>
+          <th>Wood Type</th>
+          <th>Employee</th>
+          <th>Last Updated</th>
+        </tr>
+      </thead>
+      <tbody id="productTableBody"></tbody>
+    </table>
+  </div>
+
+  <script>
+    const woodItems = JSON.parse(localStorage.getItem("woodItems") || '{}');
+    const tbody = document.getElementById("productTableBody");
+    const woodFilter = document.getElementById("woodFilter");
+    const projectFilter = document.getElementById("projectFilter");
+
+    // Populate wood filter
+    const woodCodes = Object.keys(woodItems).sort();
+    woodCodes.forEach(id => {
+      const option = document.createElement("option");
+      option.value = id;
+      option.textContent = id;
+      woodFilter.appendChild(option);
+    });
+
+    // Populate project filter
+    const projects = new Set();
+    for (const id in woodItems) {
+      const project = woodItems[id].project;
+      if (project) projects.add(project);
+    }
+    Array.from(projects).sort().forEach(project => {
+      const option = document.createElement("option");
+      option.value = project;
+      option.textContent = project;
+      projectFilter.appendChild(option);
+    });
+
+    function filterTable() {
+      const woodCode = woodFilter.value;
+      const projectName = projectFilter.value;
+      tbody.innerHTML = "";
+
+      const sortedEntries = Object.entries(woodItems).sort((a, b) => {
+        return new Date(b[1].updatedAt) - new Date(a[1].updatedAt);
+      });
+
+      for (const [id, item] of sortedEntries) {
+        if ((woodCode && id !== woodCode) || (projectName && item.project !== projectName)) continue;
+        const row = `<tr>
+          <td>${id}</td>
+          <td>${item.status}</td>
+          <td>${item.step || '-'}</td>
+          <td>${item.project || '-'}</td>
+          <td>${item.woodType || '-'}</td>
+          <td>${item.employee || 'Unknown'}</td>
+          <td>${new Date(item.updatedAt).toLocaleString()}</td>
+        </tr>`;
+        tbody.insertAdjacentHTML("beforeend", row);
+      }
+    }
+
+    function confirmLogout() {
+      if (confirm("Are you sure you want to log out?")) {
+        sessionStorage.removeItem('loggedIn');
+        localStorage.removeItem('loggedInEmployee');
+        window.location.href = "login.html";
+      }
+    }
+
+    filterTable();
+  </script>
+</body>
+</html>
+
+
+

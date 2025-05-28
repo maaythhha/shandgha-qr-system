@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Upload Image</title>
+  <script>
+    if (sessionStorage.getItem('loggedIn') !== 'true') {
+      window.location.href = 'login.html';
+    }
+  </script>
+</head>
+<body>
+  <h2>Upload Production Image</h2>
+  <form>
+    <input type="text" placeholder="Product ID">
+    <input type="file" accept="image/*">
+    <textarea placeholder="Comment or Description"></textarea>
+    <button>Upload</button>
+  </form>
+</body>
+</html>

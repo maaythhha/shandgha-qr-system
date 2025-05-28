@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Wood Inventory</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #fff;
+      margin: 0;
+      padding: 0;
+    }
+
+    header {
+      background-color: white;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #eee;
+    }
+
+    header img {
+      height: 50px;
+      cursor: pointer;
+    }
+
+    nav a {
+      text-decoration: none;
+      color: #000;
+      font-weight: 500;
+      margin: 0 10px;
+      font-size: 14px;
+    }
+
+    nav a.active {
+      color: #CB7A32;
+      border-bottom: 2px solid #CB7A32;
+    }
+
+    .logout-icon {
+      width: 28px;
+      height: 28px;
+      cursor: pointer;
+    }
+
+    .main-content {
+      padding: 30px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .filter-section {
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    select {
+      padding: 8px;
+      font-size: 14px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+
+    .total-count {
+      text-align: right;
+      margin-bottom: 10px;
+      font-weight: bold;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: center;
+    }
+
+    th {
+      background-color: #f4f4f4;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="main.html"><img src="Logo.jpg" alt="Logo"></a>
+    <nav>
+      <a href="main.html">HOME</a>
+      <a href="scan.html">SCANNING</a>
+      <a href="product-status.html">PRODUCT STATUS</a>
+      <a href="wood-inventory.html" class="active">WOOD INVENTORY</a>
+      <a href="reports.html">REPORTS</a>
+      <a href="employee-work-tracker.html">EMPLOYEE WORK TRACKER</a>
+    </nav>
+    <img src="out.jpg" alt="Logout" class="logout-icon" onclick="confirmLogout()" />
+  </header>
+
+  <div class="main-content">
+    <h1>🪵 Wood Inventory</h1>
+
+    <div class="filter-section">
+      <div>
+        <label for="filterType">Filter by Wood Type:</label><br />
+        <select id="filterType" onchange="renderInventory()">
+          <option value="All">All Types</option>
+          <option value="Softwood">Softwood</option>
+          <option value="Solid Wood">Solid Wood</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="projectFilter">Filter by Project:</label><br />
+        <select id="projectFilter" onchange="renderInventory()">
+          <option value="All">All Projects</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="total-count" id="totalCount">Total Quantity: 0</div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>QR Code</th>
+          <th>Wood Type</th>
+          <th>Project</th>
+          <th>Added At</th>
+        </tr>
+      </thead>
+      <tbody id="inventoryTableBody"></tbody>
+    </table>
+  </div>
+
+  <script>
+    const woodItems = JSON.parse(localStorage.getItem("woodItems") || '{}');
+
+    function populateProjectFilter() {
+      const projectSet = new Set();
+      for (const id in woodItems) {
+        const item = woodItems[id];
+        if (item.status === "New" && item.project) {
+          projectSet.add(item.project);
+        }
+      }
+
+      const filter = document.getElementById("projectFilter");
+      projectSet.forEach(project => {
+        const option = document.createElement("option");
+        option.value = project;
+        option.textContent = project;
+        filter.appendChild(option);
+      });
+    }
+
+    function renderInventory() {
+      const tbody = document.getElementById("inventoryTableBody");
+      const filterType = document.getElementById("filterType").value;
+      const projectFilter = document.getElementById("projectFilter").value;
+
+      let total = 0;
+      tbody.innerHTML = "";
+
+      const sorted = Object.entries(woodItems).sort((a, b) => {
+        return new Date(b[1].updatedAt) - new Date(a[1].updatedAt);
+      });
+
+      for (const [id, item] of sorted) {
+        const { status, woodType, updatedAt, project } = item;
+        if (status === "New" &&
+            (filterType === "All" || woodType === filterType) &&
+            (projectFilter === "All" || project === projectFilter)) {
+          const row = `<tr>
+            <td>${id}</td>
+            <td>${woodType}</td>
+            <td>${project || '-'}</td>
+            <td>${new Date(updatedAt).toLocaleString()}</td>
+          </tr>`;
+          tbody.insertAdjacentHTML("beforeend", row);
+          total++;
+        }
+      }
+
+      document.getElementById("totalCount").innerText = `Total Quantity: ${total}`;
+    }
+
+    populateProjectFilter();
+    renderInventory();
+
+    function confirmLogout() {
+      if (confirm("Are you sure you want to log out?")) {
+        window.location.href = "login.html";
+      }
+    }
+  </script>
+</body>
+</html>
+
+

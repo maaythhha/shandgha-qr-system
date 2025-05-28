@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Work Progress Report</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #fff;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background-color: white;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #eee;
+    }
+    header img {
+      height: 50px;
+      cursor: pointer;
+    }
+    nav a {
+      text-decoration: none;
+      color: #000;
+      font-weight: 500;
+      margin: 0 10px;
+      font-size: 14px;
+    }
+    nav a.active {
+      color: #CB7A32;
+      border-bottom: 2px solid #CB7A32;
+    }
+    .logout-icon {
+      width: 28px;
+      height: 28px;
+      cursor: pointer;
+    }
+    .main-content {
+      padding: 30px;
+      max-width: 1000px;
+      margin: 0 auto;
+      text-align: center;
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+      align-items: flex-end;
+    }
+    .filters div {
+      display: flex;
+      flex-direction: column;
+      font-size: 12px;
+    }
+    input[type="date"], button, select {
+      padding: 4px 8px;
+      font-size: 12px;
+    }
+    .chart-container {
+      max-width: 700px;
+      margin: 0 auto 30px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 30px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: center;
+    }
+    th {
+      background-color: #f4f4f4;
+    }
+  </style>
+</head>
+<body>
+  <script>
+    if (!sessionStorage.getItem('loggedIn')) {
+      window.location.href = 'login.html';
+    }
+  </script>
+  <header>
+    <a href="main.html"><img src="Logo.jpg" alt="Logo"></a>
+    <nav>
+      <a href="main.html">HOME</a>
+      <a href="scan.html">SCANNING</a>
+      <a href="product-status.html">PRODUCT STATUS</a>
+      <a href="wood-inventory.html">WOOD INVENTORY</a>
+      <a href="reports.html" class="active">REPORTS</a>
+      <a href="employee-work-tracker.html">EMPLOYEE WORK TRACKER</a>
+    </nav>
+    <img src="out.jpg" alt="Logout" class="logout-icon" onclick="confirmLogout()" />
+  </header>
+  <div class="main-content">
+    <h1>📋 Work Progress Report</h1>
+    <div class="filters">
+      <div><label for="fromDate">From:</label><input type="date" id="fromDate"></div>
+      <div><label for="toDate">To:</label><input type="date" id="toDate"></div>
+      <div><label for="employeeFilter">Employee:</label><select id="employeeFilter"></select></div>
+      <div><label for="statusFilter">Status:</label>
+        <select id="statusFilter">
+          <option value="">All</option>
+          <option value="Cutting">Cutting</option>
+          <option value="Assembling">Assembling</option>
+          <option value="Polishing">Polishing</option>
+          <option value="Painting">Painting</option>
+          <option value="Quality Check">Quality Check</option>
+          <option value="Packaging">Packaging</option>
+          <option value="Done">Done</option>
+        </select>
+      </div>
+      <div><label for="woodTypeFilter">Wood Type:</label>
+        <select id="woodTypeFilter">
+          <option value="">All</option>
+          <option value="Softwood">Softwood</option>
+          <option value="Solid Wood">Solid Wood</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-top: 10px;">
+      <button onclick="renderReport()">Filter</button>
+      <button onclick="resetFilters()">Show All</button>
+      <button onclick="exportToExcel()">Export Excel</button>
+    </div>
+    <div class="chart-container">
+      <canvas id="statusChart"></canvas>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>QR Code</th>
+          <th>Wood Type</th>
+          <th>Project</th>
+          <th>Status</th>
+          <th>Step</th>
+          <th>Employee</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody id="reportTableBody"></tbody>
+    </table>
+  </div>
+  <script>
+    const woodItems = JSON.parse(localStorage.getItem("woodItems") || '{}');
+    const tbody = document.getElementById("reportTableBody");
+    const chartCtx = document.getElementById("statusChart").getContext('2d');
+    let chartInstance = null;
+
+    function renderReport() {
+      const fromDate = document.getElementById("fromDate").value;
+      const toDate = document.getElementById("toDate").value;
+      const empFilter = document.getElementById("employeeFilter").value;
+      const statusFilter = document.getElementById("statusFilter").value;
+      const woodFilter = document.getElementById("woodTypeFilter").value;
+
+      tbody.innerHTML = '';
+      const statusCounts = {};
+
+      for (const id in woodItems) {
+        const { woodType, project, employee, updatedAt, history = [], dates = [], steps = [], status } = woodItems[id];
+        const allStatuses = [...history, status];
+        const allDates = dates.length ? [...dates, updatedAt] : allStatuses.map(() => updatedAt);
+        const allSteps = steps.length ? [...steps, woodItems[id].step || ''] : allStatuses.map(() => woodItems[id].step || '');
+
+        for (let i = 0; i < allStatuses.length; i++) {
+          const currentStatus = allStatuses[i];
+          const date = new Date(allDates[i]);
+          const step = allSteps[i] || (currentStatus === 'Done' ? 'Done' : 'Start');
+          const formatted = date.toLocaleDateString();
+
+          if ((!fromDate || date >= new Date(fromDate)) &&
+              (!toDate || date <= new Date(toDate)) &&
+              (!empFilter || employee === empFilter) &&
+              (!statusFilter || currentStatus === statusFilter) &&
+              (!woodFilter || woodType === woodFilter)) {
+            const row = `<tr>
+              <td>${id}</td>
+              <td>${woodType}</td>
+              <td>${project || '-'}</td>
+              <td>${currentStatus}</td>
+              <td>${step}</td>
+              <td>${employee || 'Unknown'}</td>
+              <td>${formatted}</td>
+            </tr>`;
+            tbody.insertAdjacentHTML('beforeend', row);
+
+            const key = `${currentStatus} (${step})`;
+            statusCounts[key] = (statusCounts[key] || 0) + 1;
+          }
+        }
+      }
+
+      const priorityOrder = ['Cutting', 'Assembling', 'Polishing', 'Painting', 'Quality Check', 'Packaging', 'Done'];
+      const sortedKeys = Object.keys(statusCounts).sort((a, b) => {
+        const aMain = a.split(' ')[0];
+        const bMain = b.split(' ')[0];
+        return priorityOrder.indexOf(aMain) - priorityOrder.indexOf(bMain);
+      });
+
+      if (chartInstance) chartInstance.destroy();
+      chartInstance = new Chart(chartCtx, {
+        type: 'bar',
+        data: {
+          labels: sortedKeys,
+          datasets: [{
+            label: 'Status Count by Step',
+            data: sortedKeys.map(k => statusCounts[k]),
+            backgroundColor: 'rgba(203, 122, 50, 0.7)'
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+    }
+
+    function resetFilters() {
+      document.getElementById("fromDate").value = '';
+      document.getElementById("toDate").value = '';
+      document.getElementById("employeeFilter").value = '';
+      document.getElementById("statusFilter").value = '';
+      document.getElementById("woodTypeFilter").value = '';
+      renderReport();
+    }
+
+    function exportToExcel() {
+      const table = document.querySelector("table");
+      const html = table.outerHTML;
+      const url = 'data:application/vnd.ms-excel,' + escape(html);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'report.xls';
+      link.click();
+    }
+
+    const employeeFilter = document.getElementById("employeeFilter");
+    const employees = new Set();
+    for (const id in woodItems) {
+      const emp = woodItems[id].employee;
+      if (emp) employees.add(emp);
+    }
+    employeeFilter.innerHTML = '<option value="">All</option>' +
+      Array.from(employees).map(emp => `<option value="${emp}">${emp}</option>`).join('');
+
+    renderReport();
+
+    function confirmLogout() {
+      if (confirm("Are you sure you want to log out?")) {
+        sessionStorage.removeItem('loggedIn');
+        localStorage.removeItem('loggedInEmployee');
+        window.location.href = "login.html";
+      }
+    }
+  </script>
+</body>
+</html>
+
+
+
+
